@@ -1,0 +1,15 @@
+[package]
+name = "weave"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Composable codecs and communication contracts"
+
+[features]
+default = ["derive"]
+derive = ["dep:weave-macros"]
+alloc = []
+
+[dependencies]
+weave-macros = { path = "../macros", optional = true }

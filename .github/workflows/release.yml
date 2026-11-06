@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ['d[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Validate source version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Check tag, versions and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          import tomllib
+
+          root = tomllib.loads(pathlib.Path('Cargo.toml').read_text())['workspace']
+          version = root['package']['version']
+          assert re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?', version)
+          assert os.environ['RELEASE_TAG'] == f'd{version}', 'tag must match workspace version'
+          for member in root['members']:
+              package = tomllib.loads((pathlib.Path(member) / 'Cargo.toml').read_text())['package']
+              assert package['version'] == {'workspace': True}, f'{member} must inherit workspace version'
+          PY
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+  check:
+    needs: version
+    uses: ./.github/workflows/check.yml
+
+  release:
+    name: Publish source release
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          args=(--verify-tag --generate-notes --title "$RELEASE_TAG")
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" "${args[@]}"
+          fi

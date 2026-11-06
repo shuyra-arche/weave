@@ -1,0 +1,42 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Rust checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_INCREMENTAL: '0'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install CI toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy --target riscv64gc-unknown-none-elf
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Test all features
+        run: cargo test --locked --workspace --all-features
+      - name: Test core without default features
+        run: cargo test --locked -p weave --no-default-features
+      - name: Check alloc separately
+        run: cargo check --locked -p weave --no-default-features --features alloc
+      - name: Check derive separately
+        run: cargo check --locked -p weave --no-default-features --features derive
+      - name: Check no_std core on RV64
+        run: cargo check --locked -p weave --no-default-features --target riscv64gc-unknown-none-elf
+      - name: Check no_std with all features on RV64
+        run: cargo check --locked -p weave --all-features --target riscv64gc-unknown-none-elf
+      - name: Lint all targets and features
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
