@@ -137,3 +137,48 @@ fn array_decode_drops_previously_decoded_values_on_failure() {
     assert!(<[Tracked; 3]>::decode(&[1, 1]).is_none());
     assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }
+
+#[test]
+fn zero_width_representations_do_not_consume_following_fields() {
+    assert_eq!(<[(); 4]>::SIZE, EncodedSize::Fixed(0));
+    assert_eq!(<[(); 4]>::decode(&[42]), Some(([(); 4], 0)));
+    assert_eq!(<[(); 4]>::decode_exact(&[]), Some([(); 4]));
+    assert_eq!(<[(); 4]>::decode_exact(&[42]), None);
+
+    let mut output = [0xaa; 1];
+    assert_eq!(codec::encode(&[(); 4], &mut output), Some(0));
+    assert_eq!(output, [0xaa]);
+}
+
+#[test]
+fn size_composition_bounds_all_successful_finite_lengths() {
+    use EncodedSize::*;
+    for left in [Fixed(0), Fixed(2), Bounded(3)] {
+        for right in [Fixed(0), Fixed(2), Bounded(3)] {
+            let sum = EncodedSize::sum(&[left, right]);
+            let choice = EncodedSize::choice(&[left, right]);
+            for a in 0..=3 {
+                if !left.accepts(a) {
+                    continue;
+                }
+                assert!(choice.accepts(a));
+                for b in 0..=3 {
+                    if right.accepts(b) {
+                        assert!(choice.accepts(b));
+                        assert!(sum.accepts(a + b));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+#[should_panic(expected = "encoded size addition overflow")]
+fn unbounded_member_does_not_hide_finite_sum_overflow() {
+    std::hint::black_box(EncodedSize::sum(&[
+        EncodedSize::Unbounded,
+        EncodedSize::Fixed(usize::MAX),
+        EncodedSize::Fixed(1),
+    ]));
+}
