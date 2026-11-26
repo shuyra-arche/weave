@@ -374,3 +374,23 @@ fn interface_server_requires_handlers_and_reserves_its_wrapper_name() {
     )
     .unwrap();
 }
+
+#[test]
+fn interface_rejects_raw_and_plain_spellings_of_the_same_operation() {
+    use quote::quote;
+
+    let error = crate::interface::expand(
+        quote!(tag = u8),
+        quote!(
+            mod api {
+                #[cfg(any())]
+                #[operation(code = 1, request = (), response = ())]
+                struct Read;
+                #[operation(code = 2, request = (), response = ())]
+                struct r#Read;
+            }
+        ),
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("duplicate operation name"));
+}

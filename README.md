@@ -1,5 +1,13 @@
 # Weave
 
+The normative design is maintained in
+[document-weave](https://github.com/shuyra-arche/document-weave/tree/8bd50da663c51d9db6b502135cddd745ed6c6d6a).
+This README describes the implementation and its public usage. The runtime
+library is independent of Limen and Twine; adapters own endpoint lifetimes,
+authorization, recovery, and settlement. A byte-size guarantee does not bound
+element count, allocation cost, or execution time. Protocol owners set explicit
+logical bounds. The public request_reply module retains its meaningful name.
+
 Weave composes value codecs, size guarantees, explicit numeric mappings,
 complete-frame transport, and request/reply execution.
 The workspace contains the `weave` library and the `weave-macros` proc-macro

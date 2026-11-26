@@ -271,7 +271,8 @@ pub fn expand(attr: TokenStream, input: TokenStream) -> syn::Result<TokenStream>
                     "duplicate operation code",
                 ));
             }
-            if !names.insert(operation.item.ident.to_string()) {
+            let name = operation.item.ident.to_string();
+            if !names.insert(name.trim_start_matches("r#").to_owned()) {
                 return Err(syn::Error::new_spanned(
                     &operation.item.ident,
                     "duplicate operation name",

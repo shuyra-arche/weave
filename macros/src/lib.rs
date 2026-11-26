@@ -7,6 +7,7 @@ mod interface;
 mod path;
 
 #[cfg(test)]
+#[path = "../tests/expansion/mod.rs"]
 mod tests;
 
 use proc_macro::TokenStream;

@@ -23,20 +23,39 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install CI toolchain
-        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy --target riscv64gc-unknown-none-elf
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Test all features
         run: cargo test --locked --workspace --all-features
       - name: Test core without default features
         run: cargo test --locked -p weave --no-default-features
-      - name: Check alloc separately
-        run: cargo check --locked -p weave --no-default-features --features alloc
-      - name: Check derive separately
-        run: cargo check --locked -p weave --no-default-features --features derive
-      - name: Check no_std core on RV64
-        run: cargo check --locked -p weave --no-default-features --target riscv64gc-unknown-none-elf
-      - name: Check no_std with all features on RV64
-        run: cargo check --locked -p weave --all-features --target riscv64gc-unknown-none-elf
+      - name: Test alloc separately
+        run: cargo test --locked -p weave --no-default-features --features alloc
+      - name: Test derive separately
+        run: cargo test --locked -p weave --no-default-features --features derive
       - name: Lint all targets and features
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+  target:
+    name: Rust target (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [riscv64gc-unknown-none-elf, aarch64-unknown-none, x86_64-unknown-none]
+    runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: '0'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install target toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --target ${{ matrix.target }}
+      - name: Check core
+        run: cargo check --locked -p weave --no-default-features --target ${{ matrix.target }}
+      - name: Check alloc
+        run: cargo check --locked -p weave --no-default-features --features alloc --target ${{ matrix.target }}
+      - name: Check derive
+        run: cargo check --locked -p weave --no-default-features --features derive --target ${{ matrix.target }}
+      - name: Check all features
+        run: cargo check --locked -p weave --all-features --target ${{ matrix.target }}
